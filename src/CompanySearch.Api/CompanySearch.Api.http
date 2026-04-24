@@ -1,0 +1,16 @@
+@CompanySearch.Api_HostAddress = http://localhost:5000
+
+POST {{CompanySearch.Api_HostAddress}}/api/search
+Content-Type: application/json
+
+{
+  "location": "Kadikoy, Istanbul",
+  "radiusKm": 3
+}
+
+###
+
+GET {{CompanySearch.Api_HostAddress}}/api/businesses
+Accept: application/json
+
+###

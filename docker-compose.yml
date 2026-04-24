@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: companysearch-postgres
+    environment:
+      POSTGRES_DB: companysearch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d companysearch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: companysearch-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: src/CompanySearch.Api/Dockerfile
+    container_name: companysearch-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=companysearch;Username=postgres;Password=postgres
+      ConnectionStrings__Redis: redis:6379
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      EmailDelivery__SandboxMode: ${EMAIL_SANDBOX_MODE:-true}
+      EmailDelivery__Host: ${SMTP_HOST:-}
+      EmailDelivery__Port: ${SMTP_PORT:-587}
+      EmailDelivery__Username: ${SMTP_USERNAME:-}
+      EmailDelivery__Password: ${SMTP_PASSWORD:-}
+      EmailDelivery__FromName: ${SMTP_FROM_NAME:-CompanySearch}
+      EmailDelivery__FromEmail: ${SMTP_FROM_EMAIL:-noreply@example.com}
+    ports:
+      - "5000:8080"
+    volumes:
+      - api-logs:/app/logs
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: companysearch-frontend
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres-data:
+  redis-data:
+  api-logs:
